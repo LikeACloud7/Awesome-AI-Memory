@@ -1,0 +1,38 @@
+name: Sync English paper list from upstream
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/IAAR-Shanghai/Awesome-AI-Memory.git
+          git fetch upstream main
+
+      - name: Merge upstream and rebuild the English README
+        run: |
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Record upstream as merged but keep this fork's English-only tree,
+          # then rebuild README.md from upstream's English list.
+          git merge -s ours --no-commit upstream/main
+          python3 scripts/sync_upstream.py upstream/main
+          git add README.md assets
+          git commit -m "Sync English paper list from upstream $(git rev-parse --short upstream/main)"
+          git push
